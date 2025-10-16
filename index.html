@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>School Ride - Parent Dashboard</title>
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#007bff" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f4f4f4; }
+        #container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        #map { height: 300px; width: 100%; border: 1px solid #ccc; margin-bottom: 20px; }
+        #notifications { background: #fff; padding: 10px; border: 1px solid #ddd; margin-bottom: 20px; min-height: 100px; }
+        #chat { background: #fff; padding: 10px; border: 1px solid #ddd; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; cursor: pointer; border-radius: 6px; }
+        button:hover { background: #0056b3; }
+        .notification { color: green; margin: 5px 0; }
+        @media (max-width: 600px) { #container { padding: 10px; } #map { height: 200px; } }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <h1>🚍 School Ride</h1>
+        <p>Welcome, Parent! Track your child's bus in real-time (Pilot: Sebokeng, Zone 8).</p>
+        <div id="map"></div>
+        <button id="startSimulation">Start Bus Simulation</button>
+        <div id="notifications">
+            <h2>Notifications</h2>
+            <p>No notifications yet.</p>
+        </div>
+        <div id="chat">
+            <h2>Communication Hub</h2>
+            <input type="text" id="chatInput" placeholder="Type message..." />
+            <button id="sendBtn">Send</button>
+            <div id="chatMessages" style="margin-top:10px;"></div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+        // Initialize Map (Sebokeng default)
+        const startLat = -26.5625, startLng = 27.8451;
+        const map = L.map('map').setView([startLat, startLng], 14);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        const busIcon = L.divIcon({
+            html: '<svg width="26" height="26"><circle cx="13" cy="13" r="12" fill="#007bff"/></svg>',
+            className: 'bus-icon',
+            iconSize: [26,26]
+        });
+
+        let busMarker = L.marker([startLat, startLng], { icon: busIcon }).addTo(map);
+        busMarker.bindPopup("School Bus - ETA: 10 min");
+
+        // Simulation
+        let simulationInterval;
+        document.getElementById('startSimulation').addEventListener('click', () => {
+            if (simulationInterval) clearInterval(simulationInterval);
+            let lat = startLat, lng = startLng;
+            addNotification('Simulation started');
+            simulationInterval = setInterval(() => {
+                lat += 0.0009; lng += 0.0012;
+                busMarker.setLatLng([lat, lng]);
+                map.setView([lat, lng]);
+                addNotification(`Bus moved! New location: ${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+            }, 2000);
+        });
+
+        function addNotification(msg) {
+            const div = document.getElementById('notifications');
+            const p = document.createElement('p');
+            p.className = 'notification';
+            p.textContent = msg;
+            div.appendChild(p);
+            // keep last 20 notifications
+            const notifs = div.querySelectorAll('.notification');
+            if (notifs.length > 20) notifs[0].remove();
+        }
+
+        // Chat (local simulation)
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const messages = document.getElementById('chatMessages');
+            if (input.value.trim()) {
+                const p = document.createElement('p');
+                p.textContent = 'You: ' + input.value;
+                messages.appendChild(p);
+                const val = input.value;
+                input.value = '';
+                setTimeout(() => {
+                    const r = document.createElement('p');
+                    r.textContent = 'Driver: Received - ' + val;
+                    messages.appendChild(r);
+                }, 800);
+            }
+        }
+        document.getElementById('sendBtn').addEventListener('click', sendMessage);
+        document.getElementById('chatInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        // Service worker registration
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('service-worker.js').then(() => {
+                console.log('Service Worker registered');
+            }).catch(err => console.log('SW reg error', err));
+        }
+    </script>
+</body>
+</html>
